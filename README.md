@@ -1470,7 +1470,548 @@ Invoke-WebRequest -Uri "https://demolang4000.cognitiveservices.azure.com/languag
 
 ---
 
+# ☁️ Azure AI Engineer Associate — AI-102 (Day 5)
+
+> **Designing and Implementing an Azure AI Solution**
+> 📄 [Official Certification Page](https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-engineer/)
+
+![Azure](https://img.shields.io/badge/Microsoft_Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![AI-102](https://img.shields.io/badge/AI--102-Certification-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Document Intelligence](https://img.shields.io/badge/Document_Intelligence-512BD4?style=for-the-badge)
+![Azure AI Search](https://img.shields.io/badge/Azure_AI_Search-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+
+> 📌 This continues from **Day 1–4** notes — covering **Section 5: Knowledge Mining & Information Extraction**, including Azure AI Document Intelligence and Azure AI Search.
+
+---
+
+## 📋 Table of Contents
+
+- [Section 5 — Knowledge Mining & Information Extraction](#-section-5--knowledge-mining--information-extraction)
+- [Azure AI Document Intelligence](#-azure-ai-document-intelligence)
+- [Custom Models](#-custom-models)
+- [Azure Content Understanding](#-azure-content-understanding)
+- [Azure AI Search](#-azure-ai-search)
+- [Lab — Full Azure AI Search Solution](#-lab--full-azure-ai-search-solution)
+
+---
+
+## 📘 Section 5 — Knowledge Mining & Information Extraction
+
+This section focuses on extracting structured insights from **unstructured documents** (PDFs, images, scanned forms) and making that content **searchable and enriched** using Azure AI services.
+
+```
+Documents (PDF/Image)
+        ↓
+Azure AI Document Intelligence  → Extract structured data (fields, tables, text)
+        ↓
+Azure AI Search                 → Index + Enrich + Search
+```
+
+---
+
+## 📄 Azure AI Document Intelligence
+
+> An AI service that **ingests hundreds of documents** and returns analyzed, structured responses.
+
+### Key Capabilities
+
+| Feature | Description |
+|---|---|
+| **Document Analysis** | Extracts fields like name, amount, etc. from invoices, bank statements, tax forms |
+| **Prebuilt Models** | Read, Invoice, Receipt, and more |
+| **Custom Models** | Train on your own document templates |
+| **Input Sources** | PDF, JPG, PNG — typically stored in **Blob Storage containers** |
+
+🔗 [Document Intelligence Studio](https://contentunderstanding.ai.azure.com/documentintelligence)
+🔗 [Read Model Documentation](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/prebuilt/read?view=doc-intel-4.0.0&tabs=sample-code)
+
+---
+
+### 🧪 Lab — Read Model Implementation
+
+Extracts plain text content (paragraphs) from a document.
+
+```python
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeResult
+
+endpoint = "https://ajit-doc4000.cognitiveservices.azure.com/"
+key = ""
+document_url = "https://documentstore4800.blob.core.windows.net/documents/HR_Policies_FAQ.pdf"
+
+client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+
+response = client.begin_analyze_document("prebuilt-read", AnalyzeDocumentRequest(url_source=document_url))
+
+result: AnalyzeResult = response.result()
+
+for index, para in enumerate(result.paragraphs):
+    print(f"Paragraph {index+1}: {para.content}")
+```
+
+---
+
+### 🧪 Lab — Invoice Model
+
+Extracts structured fields like Customer Name, Invoice ID, and SubTotal from an invoice.
+
+```python
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeResult
+
+endpoint = "https://demodoc4000.cognitiveservices.azure.com/"
+key = ""
+document_url = "https://demosg2000.blob.core.windows.net/document-demo/Sample_Invoice.pdf"
+
+client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+
+response = client.begin_analyze_document("prebuilt-invoice", AnalyzeDocumentRequest(url_source=document_url))
+
+result = response.result()
+
+for index, invoice in enumerate(result.documents):
+    print(f"Customer Name {invoice.fields.get('CustomerName').get('valueString')}")
+    print(f"Invoice ID {invoice.fields.get('InvoiceId').get('valueString')}")
+    print(f"SubTotal {invoice.fields.get('SubTotal').get('content')}")
+```
+
+---
+
+### 🧪 Lab — Receipt Model
+
+Extracts Merchant Name, Total, and Transaction Date from a receipt.
+
+```python
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeResult
+
+endpoint = "https://document200020.cognitiveservices.azure.com/"
+key = ""
+document_url = "https://documentstore4000.blob.core.windows.net/documents/Sample_Receipt.pdf"
+
+client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+
+response = client.begin_analyze_document("prebuilt-receipt", AnalyzeDocumentRequest(url_source=document_url))
+
+result = response.result()
+
+for index, receipt in enumerate(result.documents):
+    print(f"Merchant Name {receipt.fields.get('MerchantName').get('valueString')}")
+    print(f"Total {receipt.fields.get('Total').get('content')}")
+    print(f"Transaction Date {receipt.fields.get('TransactionDate').get('valueDate')}")
+```
+
+---
+
+### 🧪 Lab — Testing for Hand-Written Text
+
+Detects handwritten content and reports the model's confidence score.
+
+```python
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeResult
+
+endpoint = "https://document200020.cognitiveservices.azure.com/"
+key = ""
+document_url = "https://documentstore4000.blob.core.windows.net/documents/Document-handwritten.png"
+
+client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+
+response = client.begin_analyze_document("prebuilt-read", AnalyzeDocumentRequest(url_source=document_url))
+
+result: AnalyzeResult = response.result()
+
+for style in result.styles:
+    if style.is_handwritten == True:
+        print(f"Handwritten text, Confidence : {style.confidence}")
+
+for index, para in enumerate(result.paragraphs):
+    print(f"Paragraph {index+1}: {para.content}")
+```
+
+---
+
+### 🧪 Lab — Combining Document Intelligence + Language Service
+
+Extracts text from a document with the **Read model**, then runs **Sentiment Analysis** on each line using the Language Service.
+
+```python
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeResult
+from azure.ai.textanalytics import TextAnalyticsClient
+
+endpoint = "https://document200020.cognitiveservices.azure.com/"
+key = ""
+
+language_endpoint = "https://language3000030.cognitiveservices.azure.com/"
+language_key = ""
+
+document_url = "https://documentstore4000.blob.core.windows.net/documents/sample_sentiment_sentences.pdf"
+
+client = DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+language_client = TextAnalyticsClient(endpoint=language_endpoint, credential=AzureKeyCredential(language_key))
+
+response = client.begin_analyze_document("prebuilt-read", AnalyzeDocumentRequest(url_source=document_url))
+
+result: AnalyzeResult = response.result()
+documents = []
+
+for each_page in result.pages:
+    for index, line in enumerate(each_page.lines):
+        documents.append(line.content)
+
+language_response = language_client.analyze_sentiment(documents=documents)
+
+for result in language_response:
+    print(f"Sentiment: {result.sentences[0].sentiment} - Sentence: {result.sentences[0].text}")
+```
+
+> 💡 This demonstrates **chaining Azure AI services** — Document Intelligence extracts text, and the Language Service analyzes it.
+
+---
+
+## 🧩 Custom Models
+
+For specialized use cases (e.g., a **Survey Form** with multiple custom fields), you can train your own document model.
+
+| Model Type | Description |
+|---|---|
+| **Custom Neural Model** | Best for complex, varied document layouts |
+| **Custom Template Model** | Best for fixed/structured layouts |
+
+**Workflow:** Label your data → Train → Deploy → Evaluate prediction accuracy
+
+> 📎 Reference: [Build a Custom Model](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/how-to-guides/build-a-custom-model?view=doc-intel-4.0.0)
+
+---
+
+## 🧠 Azure Content Understanding
+
+Part of **Azure AI (Microsoft) Foundry Hub** — provides a unified way to extract and understand content across modalities.
+
+> 📎 References:
+> - [Content Understanding Overview](https://learn.microsoft.com/en-us/azure/ai-services/content-understanding/overview)
+> - [All Tutorials](https://learn.microsoft.com/en-us/azure/ai-services/content-understanding/)
+
+---
+
+## 🔎 Azure AI Search
+
+> A cloud service capability that lets you **search across multiple data sources** — local data, blob storage containers, Azure Data Lake, and more.
+
+### Where We've Already Used It
+
+| Use Case | Description |
+|---|---|
+| **RAG Model** | Provides the vector search backend for grounding LLM responses |
+| **Custom QA Chatbot** | Azure Bot Service + Search Service + Language Resource |
+
+### Core Concepts
+
+| Concept | Description |
+|---|---|
+| **Search Capabilities** | Sort, filter, search, and enrich data |
+| **Index** | A table with a defined schema — sized by the number of documents fed into it |
+| **Full-Text Search** | Traditional keyword-based search |
+| **Vector Search (RAG)** | Prompt → Tokens → Embeddings → Vector DB |
+
+### Index Field Attributes
+
+| Attribute | Description |
+|---|---|
+| **Searchable** | Field can be searched via full-text queries |
+| **Filterable** | Field can be used in filter expressions |
+| **Sortable** | Results can be ordered by this field |
+| **Retrievable** | Field is returned in search results |
+
+### Indexers
+
+| Concept | Description |
+|---|---|
+| **Crawler** | Extracts data from the data source and populates the search index |
+| **Field Mapping** | Maps source data fields to search index fields |
+| **Run Mode** | On-demand or scheduled |
+| **Supported Data Sources** | Azure Blob Storage, SQL Databases, Azure VMs |
+
+### Architecture
+
+```
+Documents
+   │
+   ▼
+Azure Blob Storage
+   │
+   ▼
+Data Source
+   │
+   ▼
+Indexer
+   │
+   ▼
+Skillset (AI Enrichment)
+   │
+   ▼
+Search Index
+   │
+   ▼
+Search Explorer
+```
+
+---
+
+## 🧪 Lab — Full Azure AI Search Solution
+
+> Build a complete Azure AI Search pipeline: **Blob Storage → Data Source → Indexer → Skillset (AI Enrichment) → Search Index → Search Explorer**
+
+📚 *Based on Microsoft Learn and Azure AI Search documentation.*
+
+### 🎯 Learning Outcomes
+
+After completing this lab, you will be able to:
+- Create an Azure AI Search service
+- Create a storage account and upload documents
+- Import and enrich content from Blob Storage
+- Build an index automatically
+- Run an indexer
+- Query indexed content
+
+### ✅ Prerequisites
+
+| Requirement | Example |
+|---|---|
+| Azure Subscription | — |
+| Resource Group | `RG-AISearch-Lab` |
+
+### 📁 Sample Documents
+
+Prepare the following files:
+- `ProductCatalog.pdf`
+- `EmployeeHandbook.pdf`
+- `TravelGuide.pdf`
+
+**Supported formats:** PDF · DOCX · TXT · HTML · JSON
+
+---
+
+### Task 1 — Create Azure AI Search Service
+
+1. Open **Azure Portal** → **Create Resource**
+2. Search for **Azure AI Search** → Click **Create**
+
+**Configuration:**
+
+| Setting | Value |
+|---|---|
+| Resource Group | `RG-AISearch-Lab` |
+| Service Name | `ai-search-lab` |
+| Region | Same region as storage |
+| Pricing Tier | Basic |
+
+3. Click **Review + Create** → wait for deployment
+
+---
+
+### Task 2 — Create Storage Account
+
+1. Create a **Storage Account**
+2. Open the Storage Account → **Containers**
+3. Create a container named `documents`
+4. Set **Access level** → `Private`
+
+---
+
+### Task 3 — Upload Documents
+
+Navigate to: **Storage Account → Containers → documents**
+
+Upload:
+- `TravelGuide.pdf`
+- `EmployeeHandbook.pdf`
+- `ProductCatalog.pdf`
+
+✅ Verify all files appear in the container.
+
+---
+
+### Task 4 — Open Import Data Wizard
+
+Navigate to: **Azure AI Search Service → Import data**
+
+This wizard automatically creates:
+- Data Source
+- Skillset
+- Index
+- Indexer
+
+---
+
+### Task 5 — Connect Blob Storage
+
+Choose **Azure Blob Storage** and configure:
+
+| Setting | Value |
+|---|---|
+| Data Source Name | `blob-datasource` |
+| Storage Account | Your Storage |
+| Container | `documents` |
+
+Select **Extract content and metadata** → Click **Next**
+
+---
+
+### Task 6 — Add Cognitive Skills (Data Enrichment)
+
+Enable **AI enrichment** and select:
+
+| Category | Skills |
+|---|---|
+| **Document Extraction** | ✅ Extract Content |
+| **Text Analysis** | ✅ Key Phrase Extraction · ✅ Language Detection · ✅ Entity Recognition |
+| **OCR** (Optional) | ✅ OCR — useful for scanned PDFs |
+
+**What happens?**
+
+Azure AI Search creates a skillset that:
+
+- **Detects Language** → e.g. `English`
+- **Extracts Key Phrases** → e.g. `Azure AI Search`, `Machine Learning`, `Cloud Computing`
+- **Extracts Entities** → e.g. `Microsoft`, `Seattle`, `Azure`
+
+---
+
+### Task 7 — Create Index
+
+**Index Name:** `documents-index`
+
+Review the generated fields:
+
+| Field | Type |
+|---|---|
+| `content` | `Edm.String` |
+| `metadata_storage_name` | `Edm.String` |
+| `language` | `Edm.String` |
+| `keyPhrases` | `Collection` |
+| `organizations` | `Collection` |
+
+> ✅ Mark `content` as **searchable** → Click **Next**
+
+---
+
+### Task 8 — Configure Indexer
+
+| Setting | Value |
+|---|---|
+| Indexer Name | `documents-indexer` |
+| Schedule | Run Once or Every Hour |
+
+Click **Submit**
+
+---
+
+### Task 9 — Monitor Indexing
+
+Navigate to: **Search Service → Indexers → documents-indexer**
+
+- Check status → Expected: **Success**
+- View **Items Processed** → Example: `3 Documents`
+
+---
+
+### Task 10 — Examine Created Resources
+
+You should now see:
+
+| Resource Type | Name |
+|---|---|
+| Data Source | `blob-datasource` |
+| Index | `documents-index` |
+| Skillset | `documents-skillset` |
+| Indexer | `documents-indexer` |
+
+---
+
+### Task 11 — Test Search Queries
+
+Navigate to: **Search Service → Search Explorer** → Select `documents-index`
+
+**Query 1 — Return all documents**
+```json
+{
+  "search": "*"
+}
+```
+
+**Query 2 — Search for "travel"**
+```json
+{
+  "search": "travel"
+}
+```
+> Expected: `TravelGuide.pdf`
+
+**Query 3 — Search for "Azure"**
+```json
+{
+  "search": "Azure"
+}
+```
+> Returns documents mentioning Azure.
+
+**Query 4 — Search by extracted key phrase**
+```json
+{
+  "search": "machine learning"
+}
+```
+
+---
+
+### Task 12 — Verify Data Enrichment
+
+Open a document result and look for enriched fields:
+
+```json
+{
+  "language": "en",
+  "keyPhrases": [
+      "Azure AI Search",
+      "Cloud Services"
+  ],
+  "organizations": [
+      "Microsoft"
+  ]
+}
+```
+
+> 💡 These fields were generated automatically by the **skillset**.
+
+---
+
+### ✅ Lab Completion Checklist
+
+- ✅ Created Azure AI Search
+- ✅ Imported data from Azure Blob Storage
+- ✅ Built a search index
+- ✅ Created an indexer
+- ✅ Applied AI enrichment (skillset)
+- ✅ Indexed documents
+- ✅ Queried content through Search Explorer
+
+---
+
 *Course notes structured for AI-102 exam preparation. Always refer to official Microsoft documentation for the latest updates.*
+
 
 
 
